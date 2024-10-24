@@ -4,11 +4,13 @@ ARG PLEROMA_VER=develop
 ARG UID=911
 ARG GID=911
 ENV MIX_ENV=prod
+ENV VIX_COMPILATION_MODE=PLATFORM_PROVIDED_LIBVIPS
 
 RUN echo "http://nl.alpinelinux.org/alpine/latest-stable/main" >> /etc/apk/repositories \
     && apk update \
-    && apk add git gcc g++ musl-dev make cmake file-dev \
-    exiftool imagemagick libmagic ncurses postgresql-client ffmpeg
+    && apk add git gcc g++ musl-dev make cmake file-dev vips-dev \
+    exiftool imagemagick libmagic ncurses postgresql-client ffmpeg vips \
+    curl-dev openssl erlang-dev
 
 RUN addgroup -g ${GID} pleroma \
     && adduser -h /pleroma -s /bin/false -D -G pleroma -u ${UID} pleroma
@@ -23,13 +25,15 @@ RUN mkdir -p /etc/pleroma \
 USER pleroma
 WORKDIR /pleroma
 
-RUN git clone -b develop https://git.pleroma.social/pleroma/pleroma.git /pleroma \
-    && git checkout ${PLEROMA_VER}
+RUN git clone -b develop https://git.pleroma.social/pleroma/pleroma.git /pleroma
+WORKDIR /pleroma
+RUN git checkout ${PLEROMA_VER}
 
 RUN echo "import Mix.Config" > config/prod.secret.exs \
     && mix local.hex --force \
     && mix local.rebar --force \
     && mix deps.get --only prod \
+    && mix deps.compile crypt \
     && mkdir release \
     && mix release --path /pleroma
 
